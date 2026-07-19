@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine Pro (Every 3s)</title>
+    <title>Teachable Machine Smooth Version</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -12,54 +12,58 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background-color: #f0f2f5;
+            background-color: #f3f4f6;
             margin: 0;
         }
         .container {
             background: white;
             padding: 30px;
             border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             text-align: center;
-            max-width: 450px;
+            max-width: 400px;
             width: 100%;
         }
-        h2 { color: #333; margin-bottom: 20px; }
-        .btn-group { margin-bottom: 20px; }
-        button {
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin: 5px;
-            transition: all 0.2s ease;
+        h2 { color: #1f2937; margin-bottom: 5px; }
+        .status-msg {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 20px;
         }
-        .btn-start { background-color: #007bff; color: white; }
-        .btn-start:hover { background-color: #0056b3; }
-        .btn-stop { background-color: #6c757d; color: white; }
-        .btn-stop:hover { background-color: #545b62; }
-        
         .video-wrapper {
             position: relative;
-            width: 250px;
-            height: 250px;
+            width: 240px;
+            height: 240px;
             margin: 0 auto 20px auto;
-            border-radius: 50%; /* ปรับเป็นทรงกลมสไตล์โมเดิร์น */
+            border-radius: 12px;
             overflow: hidden;
-            border: 4px solid #fff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            background: #222;
+            border: 2px solid #e5e7eb;
+            background: #111827;
         }
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Flip หน้ากล้องให้เหมือนกระจก */
+            transform: scaleX(-1); /* Flip กระจก */
         }
+        .btn-group { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-start { background-color: #10b981; color: white; }
+        .btn-start:hover { background-color: #059669; }
+        .btn-stop { background-color: #ef4444; color: white; }
+        .btn-stop:hover { background-color: #dc2626; }
+        button:disabled { background-color: #d1d5db; color: #9ca3af; cursor: not-allowed; }
+
         #label-container {
-            margin-top: 15px;
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -67,33 +71,30 @@
         .prediction-item {
             display: flex;
             justify-content: space-between;
-            background: #f8f9fa;
-            padding: 10px 15px;
+            align-items: center;
+            background: #f9fafb;
+            padding: 12px 16px;
             border-radius: 8px;
-            font-size: 16px;
-            border-left: 4px solid #007bff;
+            font-size: 15px;
+            border: 1px solid #e5e7eb;
         }
-        .status-msg {
-            color: #666;
-            font-style: italic;
-            margin-bottom: 15px;
-        }
+        .class-name { font-weight: 500; color: #374151; }
+        .class-prob { font-weight: bold; color: #2563eb; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>AI Object Detection</h2>
-    <div id="status" class="status-msg">กดปุ่ม Start เพื่อเริ่มต้นใช้งาน</div>
+    <div id="status" class="status-msg">พร้อมใช้งาน</div>
     
     <div class="video-wrapper">
-        <!-- เปลี่ยนมาใช้แท็ก Video มาตรฐานแทน Canvas ช่วยเพิ่มการรองรับของเบราว์เซอร์ -->
         <video id="webcam" autoplay playsinline muted></video>
     </div>
 
     <div class="btn-group">
-        <button type="button" class="btn-start" onclick="startApp()">Start</button>
-        <button type="button" class="btn-stop" onclick="stopApp()">Stop</button>
+        <button type="button" id="startBtn" class="btn-start" onclick="startApp()">Start</button>
+        <button type="button" id="stopBtn" class="btn-stop" onclick="stopApp()" disabled>Stop</button>
     </div>
     
     <div id="label-container"></div>
@@ -107,89 +108,105 @@
     const URL = "https://teachablemachine.withgoogle.com/models/flTyI50XI/";
     
     let model, maxPredictions;
-    let timerInterval = null;
+    let isRunning = false; // ตัวแปรเช็กสถานะการทำงานเพื่อป้องกันการซ้อนทับ
     let streamRef = null;
+    let timeoutId = null; // เก็บไอดีของ setTimeout เพื่อใช้เคลียร์ตอนหยุด
     
     const videoEl = document.getElementById('webcam');
     const statusEl = document.getElementById('status');
     const labelContainer = document.getElementById("label-container");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
 
-    // 1. ฟังก์ชันหลักสำหรับเริ่มทำงาน
+    // ฟังก์ชันหน่วงเวลาแบบไร้อาการค้าง (Promise-based Sleep)
+    const sleep = (ms) => new Promise(resolve => timeoutId = setTimeout(resolve, ms));
+
     async function startApp() {
-        if (timerInterval) return; // ทำงานอยู่แล้ว ไม่ต้องทำซ้ำ
+        if (isRunning) return;
+        isRunning = true;
+        
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
 
         try {
-            statusEl.innerText = "กำลังเชื่อมต่อกล้องและโหลดโมเดล...";
-            
-            // โหลดโมเดล AI (โหลดครั้งเดียว)
+            statusEl.innerText = "กำลังโหลดโมเดล AI...";
             if (!model) {
                 model = await tmImage.load(URL + "model.json", URL + "metadata.json");
                 maxPredictions = model.getTotalClasses();
             }
 
-            // เปิดกล้องด้วยคำสั่งมาตรฐานของเบราว์เซอร์ (ช่วยลดปัญหากล้องไม่เปิด)
+            statusEl.innerText = "กำลังขอสิทธิ์เปิดกล้อง...";
             const constraints = {
-                video: { width: 250, height: 250, facingMode: "user" },
+                video: { width: 320, height: 320, facingMode: "user" },
                 audio: false
             };
             
             streamRef = await navigator.mediaDevices.getUserMedia(constraints);
             videoEl.srcObject = streamRef;
 
-            // รอจนกว่ากล้องจะพร้อมส่งข้อมูลภาพเข้ามาจริงๆ
             videoEl.onloadedmetadata = () => {
-                statusEl.innerText = "ระบบกำลังทำงาน (อัปเดตทุกๆ 3 วินาที)";
+                statusEl.innerText = "ระบบกำลังสแกน (ทุกๆ 3 วินาที)";
                 setupLabels();
-                
-                // สั่งทำนายผลรอบแรกทันที
-                predict();
-                
-                // ตั้งเวลาทำนายผลทุกๆ 3 วินาที[cite: 1]
-                timerInterval = setInterval(predict, 3000);
+                // เริ่มลูปการทำงานแบบไม่กระตุก
+                detectionLoop();
             };
 
         } catch (error) {
             console.error(error);
-            statusEl.innerHTML = `<span style="color:red;">❌ ไม่สามารถเปิดกล้องได้: ${error.message}</span>`;
+            statusEl.innerHTML = `<span style="color:#ef4444;">❌ ข้อผิดพลาด: ${error.message}</span>`;
+            stopApp();
         }
     }
 
-    // 2. ฟังก์ชันเตรียมพื้นที่แสดงตัวหนังสือ
+    // ลูปประมวลผลอัจฉริยะ การันตีไม่ค้าง ไม่เกิดปัญหา Thread ซ้อนทับ
+    async function detectionLoop() {
+        while (isRunning) {
+            if (model && videoEl.srcObject && videoEl.readyState >= 2) {
+                try {
+                    // 1. อัปเดตเฟรมกล้องและส่งให้ AI ประมวลผล
+                    const prediction = await model.predict(videoEl);
+                    
+                    // 2. แสดงผลลัพธ์บนหน้าจอ
+                    for (let i = 0; i < maxPredictions; i++) {
+                        const className = prediction[i].className;
+                        const percentage = (prediction[i].probability * 100).toFixed(0) + "%";
+                        
+                        const item = labelContainer.childNodes[i];
+                        if (item) {
+                            item.innerHTML = `<span class="class-name">${className}</span><span class="class-prob">${percentage}</span>`;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Prediction error:", err);
+                }
+            }
+            
+            // 3. เมื่อประมวลผลเสร็จแล้ว ค่อยสั่งให้นอนรอไปอีก 3 วินาทีเต็มๆ ก่อนจะเริ่มรอบใหม่
+            await sleep(3000); 
+        }
+    }
+
     function setupLabels() {
         labelContainer.innerHTML = "";
         for (let i = 0; i < maxPredictions; i++) {
             const div = document.createElement("div");
             div.className = "prediction-item";
-            div.innerHTML = `<span>-</span><span>0%</span>`;
+            div.innerHTML = `<span class="class-name">-</span><span class="class-prob">0%</span>`;
             labelContainer.appendChild(div);
         }
     }
 
-    // 3. ฟังก์ชันการทำนายผลด้วย AI
-    async function predict() {
-        if (!model || !videoEl.srcObject) return;
-        
-        // ส่งแท็ก video เข้าโมเดลตรงๆ เพื่อความแม่นยำและรวดเร็ว
-        const prediction = await model.predict(videoEl);
-        
-        for (let i = 0; i < maxPredictions; i++) {
-            const className = prediction[i].className;
-            const percentage = (prediction[i].probability * 100).toFixed(0) + "%";
-            
-            labelContainer.childNodes[i].innerHTML = `<span>${className}</span><span>${percentage}</span>`;
-        }
-    }
-
-    // 4. ฟังก์ชันหยุดการทำงานทั้งหมด
     function stopApp() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
+        isRunning = false;
+        if (timeoutId) clearTimeout(timeoutId);
+        
         if (streamRef) {
-            streamRef.getTracks().forEach(track => track.stop()); // สั่งปิดไฟกล้องอย่างสนิท
+            streamRef.getTracks().forEach(track => track.stop());
             videoEl.srcObject = null;
         }
+        
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
         statusEl.innerText = "หยุดการทำงานแล้ว";
         labelContainer.innerHTML = "";
     }
