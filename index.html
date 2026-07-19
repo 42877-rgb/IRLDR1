@@ -3,303 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Web Camera Detector</title>
-    
-    <!-- นำเข้า Google Fonts เพิ่มความพรีเมียม -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-
+    <title>Teachable Machine Image Model (Every 3s)</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Sarabun', sans-serif;
-        }
-
         body {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            padding: 20px;
-            color: #ffffff;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f5f7fb;
+            margin: 0;
         }
-
         .container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            padding: 35px;
-            width: 100%;
-            max-width: 440px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
         }
-
-        h2 {
-            color: #ffffff;
-            margin-bottom: 5px;
-            font-size: 24px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .subtitle {
-            font-size: 13px;
-            color: #b0bec5;
-            margin-bottom: 25px;
-        }
-
-        .btn-start {
-            background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
-            color: white;
-            border: none;
-            padding: 14px 30px;
+        button {
+            padding: 10px 20px;
             font-size: 16px;
-            font-weight: 600;
-            border-radius: 12px;
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+            margin: 5px;
+            transition: 0.2s;
         }
-
-        .btn-start:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 114, 255, 0.6);
-        }
-
-        .btn-start:disabled {
-            background: #455a64;
-            color: #90a4ae;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
-
-        /* กรอบแสดงผลกล้องแบบกระจกนิรภัย */
-        .webcam-box {
-            margin: 20px auto;
-            border-radius: 16px;
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-stop { background-color: #dc3545; color: white; }
+        button:hover { opacity: 0.9; }
+        #webcam-container {
+            margin: 20px 0;
+            border: 3px solid #ddd;
+            border-radius: 8px;
             overflow: hidden;
-            width: 220px;
-            height: 220px;
-            background-color: rgba(0, 0, 0, 0.2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            position: relative;
+            display: inline-block;
+            height: 200px;
+            width: 200px;
+            background: #eee;
         }
-
-        #webcam-container canvas {
-            display: block;
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover;
-        }
-
-        /* ไฟสถานะตรวจจับวิเคราะห์ผลทุก 3 วินาที */
-        .status-dot {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 12px;
-            height: 12px;
-            background-color: #ff5252;
-            border-radius: 50%;
-            border: 2px solid white;
-            transition: all 0.2s ease;
-        }
-
-        .status-dot.scanning {
-            background-color: #69f0ae;
-            box-shadow: 0 0 10px #69f0ae, 0 0 20px #69f0ae;
-            transform: scale(1.2);
-        }
-
         #label-container {
-            margin-top: 25px;
-            text-align: left;
-        }
-
-        /* แถบความแม่นยำ AI (Progress Bar) */
-        .label-row {
-            background: rgba(255, 255, 255, 0.08);
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            font-size: 14px;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .label-text {
-            display: flex;
-            justify-content: space-between;
-            position: relative;
-            z-index: 2;
-            font-weight: 600;
-        }
-
-        .progress-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: linear-gradient(90deg, rgba(0, 198, 255, 0.3) 0%, rgba(0, 114, 255, 0.3) 100%);
-            z-index: 1;
-            transition: width 0.4s ease-out;
-            width: 0%;
-        }
-
-        /* แสดงข้อความแจ้งเตือนข้อผิดพลาดกลางหน้าจอ */
-        .error-message {
-            background: rgba(244, 67, 54, 0.2);
-            border: 1px solid #f44336;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 13px;
-            color: #ff8a80;
             margin-top: 15px;
-            display: none;
-            text-align: left;
-            line-height: 1.5;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .prediction-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: #f8f9fa;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>AI Object Detector</h2>
-    <div class="subtitle">Teachable Machine Image Model (3s Interval)</div>
+    <h2>Teachable Machine Image Model</h2>
     
-    <button type="button" class="btn-start" id="start-btn" onclick="init()">เปิดระบบตรวจจับ</button>
+    <!-- ปุ่มควบคุม -->
+    <button type="button" class="btn-start" onclick="init()">Start</button>
+    <button type="button" class="btn-stop" onclick="stopWebcam()">Stop</button>
     
-    <div class="webcam-box">
-        <div class="status-dot" id="dot"></div>
-        <div id="webcam-container"></div>
-    </div>
-    
-    <div id="error-box" class="error-message"></div>
+    <br>
+    <div id="webcam-container"></div>
     <div id="label-container"></div>
 </div>
 
+<!-- สคริปต์ TensorFlow และ Teachable Machine -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
 <script type="text/javascript">
-    const URL = "https://teachablemachine.withgoogle.com/models/flTyI50XI/";[cite: 6]
+    // ลิงก์โมเดลของคุณ
+    const URL = "https://teachablemachine.withgoogle.com/models/flTyI50XI/";
 
     let model, webcam, labelContainer, maxPredictions;
-    let lastPredictTime = 0; 
+    let timerInterval = null; // ตัวแปรสำหรับเก็บค่า setInterval
 
+    // โหลดโมเดลและตั้งค่ากล้อง
     async function init() {
-        const startBtn = document.getElementById("start-btn");
-        const errorBox = document.getElementById("error-box");
+        // ป้องกันการกด Start ซ้ำซ้อนตอนที่ระบบกำลังทำงานอยู่
+        if (timerInterval) return; 
+
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        // โหลดโมเดล (ถ้ายังไม่ได้โหลด)
+        if (!model) {
+            document.getElementById("label-container").innerHTML = "กำลังโหลดโมเดล...";
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+        }
+
+        // ตั้งค่ากล้องเว็บแคม
+        const flip = true; 
+        webcam = new tmImage.Webcam(200, 200, flip); 
+        await webcam.setup(); 
+        await webcam.play();
+
+        // แสดงผลหน้ากล้องบนหน้าจอ
+        const webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.innerHTML = ""; // ล้างค่าเก่าออกก่อน
+        webcamContainer.appendChild(webcam.canvas);
         
-        startBtn.disabled = true;
-        startBtn.innerText = "กำลังเชื่อมต่อระบบ AI...";
-        errorBox.style.display = "none";
+        // สร้างพื้นที่แสดงผลคำทำนาย
+        labelContainer = document.getElementById("label-container");
+        labelContainer.innerHTML = "";
+        for (let i = 0; i < maxPredictions; i++) {
+            const div = document.createElement("div");
+            div.className = "prediction-item";
+            labelContainer.appendChild(div);
+        }
 
-        try {
-            const modelURL = URL + "model.json";[cite: 6]
-            const metadataURL = URL + "metadata.json";[cite: 6]
+        // ทำนายผลครั้งแรกทันทีที่เปิดใช้งาน
+        updateAndPredict();
 
-            // โหลดโมเดลผ่านโครงสร้างหลักดั้งเดิมป้องกันบั๊ก[cite: 6]
-            model = await tmImage.load(modelURL, metadataURL);[cite: 6]
-            maxPredictions = model.getTotalClasses();[cite: 6]
+        // เรียกใช้ฟังก์ชันทุกๆ 3 วินาที (3000 มิลลิวินาที) ตามที่ต้องการ
+        timerInterval = setInterval(updateAndPredict, 3000); 
+    }
 
-            // เปิดกล้องด้วยโมดูลมาตรฐานของ Teachable Machine[cite: 6]
-            const flip = true; 
-            webcam = new tmImage.Webcam(220, 220, flip);[cite: 6]
-            await webcam.setup();[cite: 6]
-            await webcam.play();[cite: 6]
-            
-            // รันอนิเมชันลูปกล้องให้ลื่นไหล[cite: 6]
-            window.requestAnimationFrame(loop);[cite: 6]
-
-            // นำแคนวาสใส่เข้าในพื้นที่แสดงผล[cite: 6]
-            const container = document.getElementById("webcam-container");
-            container.innerHTML = "";
-            container.appendChild(webcam.canvas);[cite: 6]
-            
-            // สร้างอินเทอร์เฟซแสดงผลลัพธ์แบบแถบพลังความก้าวหน้า (Progress Bar)
-            labelContainer = document.getElementById("label-container");[cite: 6]
-            labelContainer.innerHTML = "";
-            for (let i = 0; i < maxPredictions; i++) {[cite: 6]
-                const row = document.createElement("div");
-                row.className = "label-row";
-                row.innerHTML = `
-                    <div class="progress-bar" id="bar-${i}"></div>
-                    <div class="label-text">
-                        <span id="name-${i}">-</span>
-                        <span id="val-${i}">0%</span>
-                    </div>
-                `;
-                labelContainer.appendChild(row);
-            }
-
-            startBtn.innerText = "ระบบตรวจจับกำลังทำงาน";
-            lastPredictTime = Date.now();
-
-        } catch (error) {
-            console.error(error);
-            startBtn.disabled = false;
-            startBtn.innerText = "ลองใหม่อีกครั้ง";
-            
-            // แสดงวิธีแก้ไขปัญหาหน้าจอดำ/เปิดกล้องไม่ได้ให้ผู้ใช้เห็นทันที
-            errorBox.innerHTML = `
-                <strong>⚠️ เปิดกล้องไม่สำเร็จ:</strong><br>
-                1. ตรวจสอบว่าคุณเปิดหน้านี้ผ่านลิงก์ <strong>HTTPS</strong> บน GitHub Pages แล้วหรือยัง (เปิดไฟล์ตรงๆ ในเครื่องกล้องจะโดนบล็อก)<br>
-                2. ตรวจสอบว่ากดยอมรับสิทธิ์อนุญาตกล้อง (Allow Camera) ที่มุมบนเบราว์เซอร์แล้วหรือยัง
-            `;
-            errorBox.style.display = "block";
+    // ฟังก์ชันที่จะถูกเรียกทุกๆ 3 วินาที[cite: 1]
+    async function updateAndPredict() {
+        if (webcam) {
+            webcam.update(); // อัปเดตเฟรมภาพจากกล้อง
+            await predict(); // ส่งภาพไปให้โมเดลประมวลผล
         }
     }
 
-    async function loop() {
-        if(webcam) {
-            webcam.update(); // ปล่อยให้ภาพวิดีโออัปเดตลื่นไหลทุกเฟรมปกติ[cite: 6]
-            
-            const currentTime = Date.now();
-            // ตรวจสอบเงื่อนไขเวลา: ดักจับภาพส่งไปให้ AI ประมวลผลทุกๆ 3 วินาที (3000 มิลลิวินาที)
-            if (currentTime - lastPredictTime >= 3000) {
-                lastPredictTime = currentTime;
-                
-                // เอฟเฟกต์ไฟเขียวกะพริบแจ้งเตือนการสแกนรอบใหม่
-                const dot = document.getElementById("dot");
-                dot.classList.add("scanning");
-                setTimeout(() => dot.classList.remove("scanning"), 400);
-                
-                await predict();
-            }
-        }
-        window.requestAnimationFrame(loop);[cite: 6]
-    }
-
+    // ประมวลผลและทำนายวัตถุจากภาพในกล้อง
     async function predict() {
-        if (!model || !webcam) return;
-        
-        const prediction = await model.predict(webcam.canvas);[cite: 6]
-        for (let i = 0; i < maxPredictions; i++) {[cite: 6]
-            const className = prediction[i].className;
-            const percentage = (prediction[i].probability * 100).toFixed(0);
-            
-            // อัปเดตข้อมูลและขยับแถบความแม่นยำ (Progress Bar) แบบเรียลไทม์
-            document.getElementById(`name-${i}`).innerText = className;
-            document.getElementById(`val-${i}`).innerText = percentage + "%";
-            document.getElementById(`bar-${i}`).style.width = percentage + "%";
+        const prediction = await model.predict(webcam.canvas);
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction =
+                prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(0) + "%";
+            labelContainer.childNodes[i].innerHTML = classPrediction;
         }
+    }
+
+    // ฟังก์ชันสำหรับหยุดการทำงานของกล้องและตัวจับเวลา
+    function stopWebcam() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        if (webcam) {
+            webcam.stop();
+        }
+        document.getElementById("label-container").innerHTML = "หยุดการทำงานแล้ว";
     }
 </script>
 
 </body>
-</html>
+</html>>
